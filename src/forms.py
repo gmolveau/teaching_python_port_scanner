@@ -1,8 +1,10 @@
 import ipaddress
 
-from flask import Flask, render_template, request
+from flask import Blueprint, render_template, request
 
-from scan import scan
+from src.core.scan import scan
+
+forms_blueprint = Blueprint("forms", __name__)
 
 
 def valid_ipv4_address(value):
@@ -24,15 +26,12 @@ def valid_port(value):
     return port
 
 
-app = Flask(__name__)
-
-
-@app.get("/")
+@forms_blueprint.get("/")
 def home():
     return render_template("index.html")
 
 
-@app.post("/scan")
+@forms_blueprint.post("/scan")
 def post_scan():
     form = request.form.to_dict()
     ip_target = valid_ipv4_address(form.get("ipv4"))
