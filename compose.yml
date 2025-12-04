@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: portscanner
+      POSTGRES_PASSWORD: portscanner
+      POSTGRES_DB: portscanner
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scanner"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
