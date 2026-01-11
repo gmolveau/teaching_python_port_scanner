@@ -1,6 +1,5 @@
 from flask import Flask
 
-from src import db
 from src.auth import auth_blueprint
 from src.forms import forms_blueprint
 
@@ -10,5 +9,4 @@ def create_app():
     app.register_blueprint(forms_blueprint)
     app.register_blueprint(auth_blueprint)
 
-    # db.init_app(app)
     return app
