@@ -24,3 +24,15 @@ def get_user_password(username):
         cursor.execute("SELECT password FROM users WHERE username = ?", (username,))
         result = cursor.fetchone()
         return result[0] if result else None
+
+
+def get_user(username):
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, username, password FROM users WHERE username = ?", (username,)
+        )
+        result = cursor.fetchone()
+        if result is None:
+            return None
+        return result

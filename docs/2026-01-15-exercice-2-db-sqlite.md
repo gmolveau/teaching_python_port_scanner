@@ -49,3 +49,5 @@ Lancez votre app et testez le workflow register + login fonctionne ;)
 ## Correction
 
 cf. le code :)
+
+7. (bonus) la fonction `get_user` de `src/services/users.py` renvoie quelle structure de données ? elle ne semble pas super pratique pour savoir comment récupérer un champ en particulier. quelle(s) modification(s) feriez-vous pour changer la structure de donnée pour en choisir une plus adaptée ? quelle structure avez-vous choisi ?
