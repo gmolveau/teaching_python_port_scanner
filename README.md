@@ -1,6 +1,6 @@
-# Python Port Scanner
+# Teaching Python
 
-Teaching python port scanner exercice
+This repo was designed to learn python through the making of a port scanner, a classic cyber tool.
 
 ## Getting started
 

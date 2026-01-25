@@ -3,8 +3,9 @@ import ipaddress
 from flask import Blueprint, render_template, request
 
 from src.core.scan import scan
+from src.services.sessions import login_required
 
-forms_blueprint = Blueprint("forms", __name__)
+dashboard_blueprint = Blueprint("dashboard", __name__)
 
 
 def valid_ipv4_address(value):
@@ -26,12 +27,14 @@ def valid_port(value):
     return port
 
 
-@forms_blueprint.get("/")
-def home():
-    return render_template("index.html")
+@dashboard_blueprint.get("/dashboard")
+@login_required
+def dashboard_page():
+    return render_template("dashboard.html")
 
 
-@forms_blueprint.post("/scan")
+@dashboard_blueprint.post("/scan")
+@login_required
 def post_scan():
     form = request.form.to_dict()
     ip_target = valid_ipv4_address(form.get("ipv4"))
