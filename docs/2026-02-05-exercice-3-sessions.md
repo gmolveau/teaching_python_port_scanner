@@ -426,7 +426,7 @@ Actuellement, si le login échoue, on redirige simplement vers `/login` sans exp
 
 Le problème avec notre implémentation : si le serveur redémarre, toutes les sessions sont perdues puisqu'elles sont stockées en RAM, in memory!
 
-Il nous **persister** nos sessions. Pour cela, imaginez une table `sessions`, modifiez le schéma de `create_db.py`  et modifiez `src/services/sessions.py` pour persister les sessions dans la BDD.
+Il nous faut **persister** nos sessions. Pour cela, imaginez une table `sessions`, modifiez le schéma de `create_db.py`  et modifiez `src/services/sessions.py` pour persister les sessions dans la BDD.
 
 ### 4.3 Ajouter un "Remember me"
 
