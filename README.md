@@ -1,11 +1,17 @@
 # Python Port Scanner
 
-Teaching python port scanner exercice
+Teaching python with a `port scanner` exercice
 
 ## Getting started
 
-- Clone the repo
-- Create the virtual environement with `python3 -m venv venv`
-- Activate the `venv` with `source venv/bin/activate`
-- Install dependencies with `pip install -r requirements.txt`
-- Run the app with `flask --app src run --debug`
+- Create your own repo, open it in your editor (eg. `vscode`)
+- Clone this repo and open it also in another instance of your editor
+- Switch to the branch of the exercice :
+
+1. `templates`
+2. `inmemory`
+3. `sqlite`
+4. `sessions`
+
+- Read the `docs/` folder and follow the exercice
+- The full project answer is in the same branch
