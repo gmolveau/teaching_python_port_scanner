@@ -79,11 +79,11 @@ Version 0  -  (base vide)                   ▼ DOWN
 
 Comment le système sait-il quelles migrations ont déjà été appliquées ?
 
-=> Grâce à une **table dédiée** dans la base de donnees, souvent appelée `schema_migrations` ou `migration_history`.
+=> Grâce à une **table dédiée** dans la base de donnees, souvent appelée `migrator_version` ou `migration_history`.
 
 ```plaintext
 ┌──────────────────────────────────────────────┐
-│            schema_migrations                 │
+│            migrator_version                 │
 ├──────────┬───────────────────────────────────┤
 │ version  │ applied_at                        │
 ├──────────┼───────────────────────────────────┤
@@ -95,7 +95,7 @@ Comment le système sait-il quelles migrations ont déjà été appliquées ?
 
 Quand on lance les migrations :
 
-1. Le systeme lit la table `schema_migrations`
+1. Le systeme lit la table `migrator_version`
 2. Il compare avec les fichiers de migration disponibles
 3. Il éxécute uniquement les migrations **qui n'ont pas encore été appliquées**
 4. Il enregistre chaque migration exécutée dans la table
@@ -174,23 +174,42 @@ Notre système maison utilise des numéros (`001`, `002`...). Cela suffit quand 
 
 Malgré ces limites, notre outil devrait couvrir l'essentiel : appliquer des migrations dans l'ordre, suivre lesquelles ont été appliquées, et pouvoir revenir en arrière.
 
-### Structure attendue
+### Mode expert
+
+Pour les lecteurs les plus aventuriers, ne lisez pas le reste de l'exercice et developpez vous-même votre propre outil de migration (cli) et le format des migrations qui vont avec.
+
+Pour rappel, les migrations se trouvent dans un dossier `migrations`.
+Une migration est en 2 parties, une partie pour appliquer la migration, et une pour revenir en arriere. A vous de choisir quel design vous preferez.
+
+N'hésitez pas à créer un projet github public pour publier votre outil ;-) #recrutement
+
+Good luck ! :)
+
+### Mode guidé - structure attendue
+
+Nous choisirons de stocker les migrations au format `sql` dans un dossier `migrations`.
+
+Nous allons pour cet exercice, hard-coder le nom de la DB dans le migrator, mais idéalement il faudrait que notre migrator puisse être configuré.
 
 ```plaintext
-projet/
-    migrator.py              # Votre outil de migration
-    migrations/              # Dossier contenant les fichiers .sql
-        001_create_users_table.sql
-        002_create_sessions_table.sql
-    src/
-    ...
+migrator.py              # Outil de migration
+migrations/              # Dossier contenant les migrations .sql
+    001_create_users_table.sql
+    002_create_sessions_table.sql
+src/
 ```
 
 ### Format des fichiers de migration
 
-Chaque fichier de migration est un fichier `.sql` dont le nom commence par un numéro de version sur 3 chiffres, suivi d'un `_` et d'un nom descriptif. Exemple : `001_create_users_table.sql`.
+Pour représenter une migration, nous choisissons le design suivant : chaque migration est un fichier `.sql` dont le nom commence par un numéro de version sur 3 chiffres, suivi d'un `_` et d'un nom descriptif. Exemple : `001_create_users_table.sql`.
 
-Le contenu du fichier utilise deux marqueurs `-- UP` et `-- DOWN` pour séparer les deux opérations :
+Pour avoir les 2 parties requises d'une migration, le fichier aura deux marqueurs `-- UP` et `-- DOWN` pour séparer les deux opérations.
+
+_Idée_ : auriez-vous imaginer un autre design ?
+
+> On aurait pu par exemple séparer une migration en 2 fichiers : `001_create_users_table.up.sql` et `001_create_users_table.down.sql` :shrug:
+
+Exemple de notre choix de design de migration :
 
 ```sql
 -- UP
@@ -204,14 +223,14 @@ CREATE TABLE users (
 DROP TABLE users;
 ```
 
-Votre outil devra parser ce format pour extraire le SQL de chaque section.
+L'outil devra parser ce format pour extraire le SQL de chaque section.
 
 ### Table de suivi
 
-Le migrator doit créer et maintenir une table `schema_migrations` dans la base SQLite pour suivre l'état des migrations :
+Le `migrator` doit créer et maintenir une table `migrator_version` dans la base de données pour suivre l'état des migrations :
 
 ```sql
-CREATE TABLE schema_migrations (
+CREATE TABLE migrator_version (
     version TEXT PRIMARY KEY,
     applied_at TEXT NOT NULL
 );
@@ -222,9 +241,13 @@ CREATE TABLE schema_migrations (
 
 Cette table doit être créée automatiquement par le migrator si elle n'existe pas.
 
+Elle contiendra toujours uniquement 1 seule entrée, c'est à dire la dernière migration appliquée. Cela permet à l'outil de savoir où en est la base de données.
+
 ### Commandes attendues
 
-Le migrator doit exposer **4 commandes** via `argparse` (avec des sous-commandes) :
+Le migrator doit exposer **4 commandes**.
+
+Un exemple est disponible dans `examples/argparse/commands.py`.
 
 #### `python migrator.py status`
 
@@ -240,8 +263,9 @@ Version    Fichier                                        Statut
 
 Comportement :
 
-- Lire les fichiers `.sql` du dossier `migrations/` (triés par nom)
-- Comparer avec les versions présentes dans la table `schema_migrations` de la DB
+- Récupérer la dernière migration appliquée en base grâce à la table `migrator_version`
+- Lire les fichiers `.sql` du dossier `migrations/` (triés par ordre lexicographique)
+- En partant de la migration la plus récente, comparer avec l'état de la DB (exemple, migration actuelle = 002, migration la plus récente == 004, donc en attente)
 - Afficher le statut de chaque migration
 
 #### `python migrator.py up`
@@ -260,8 +284,9 @@ Applying 002_create_sessions_table.sql...
 
 Comportement :
 
-- Déterminer les migrations dont la version n'est **pas** dans la table `schema_migrations` de la DB cible
-- Pour chaque migration en attente (dans l'ordre) : exécuter le SQL de la section `-- UP`, puis enregistrer la version dans `schema_migrations`
+- Déterminer les migrations à appliquer à partir de la version stockée en base
+- Si la table `migrator_version` n'existe pas, il faut la créer
+- Pour chaque migration en attente (dans l'ordre) : exécuter le SQL de la section `-- UP`, puis enregistrer la version dans `migrator_version`
 - Si aucune migration en attente : afficher un message
 
 #### `python migrator.py down`
@@ -276,10 +301,10 @@ Rollback 002_create_sessions_table.sql...
 
 Comportement :
 
-- Trouver la dernière version dans `schema_migrations` (la plus grande)
+- Récupérer la version dans `migrator_version`
 - Trouver le fichier `.sql` correspondant
 - Exécuter le SQL de la section `-- DOWN`
-- Supprimer la ligne dans `schema_migrations`
+- Changer la version dans `migrator_version`, si cetait la toute première migration, alors vider la table
 - Si aucune migration appliquée : afficher un message approprié
 
 #### `python migrator.py create <nom>`
@@ -294,23 +319,24 @@ Migration créée: migrations/003_add_email_to_users.sql
 
 Comportement :
 
+- Trouver le chemin du dossier `migrations` à partir de l'endroit où la commande a été lancée (eg. si la commande est lancée depuis `/home/user/dev/projetpython`, l'outil va donc chercher un dossier `/home/user/dev/projetpython/migrations`)
 - Déterminer le prochain numéro de version (dernier + 1, ou 001 si aucun fichier)
 - Créer le fichier avec le template `-- UP` / `-- DOWN`
 
 ### Aides
 
-- `argparse` avec `add_subparsers` pour les sous-commandes
+- pour le cli, utiliser `argparse` avec `add_subparsers` pour les sous-commandes
 - `os.listdir()` pour lister les fichiers du dossier `migrations/`
 - `conn.executescript()` pour exécuter du SQL multi-lignes
 - `str.split()` pour découper le contenu du fichier selon les marqueurs
 
 ---
 
-## Partie 3 : Exercice
+## Partie 3 : Mise en place du migrator
 
 ### Étape 1 : Coder le migrator
 
-Créez `migrator.py` à la racine de votre projet en suivant le cahier des charges ci-dessus.
+Codez `migrator.py` à la racine de votre projet en suivant les specs ci-dessus.
 
 Testez chaque commande au fur et à mesure.
 
@@ -319,7 +345,7 @@ Testez chaque commande au fur et à mesure.
 Créez votre première migration pour la table `users` :
 
 ```bash
-python migrator.py create create_users_table
+python migrator.py create "create users table"
 ```
 
 Éditez le fichier `migrations/001_create_users_table.sql` et écrivez le SQL correspondant (inspirez-vous du `CREATE TABLE` dans votre `create_db.py` actuel).
@@ -338,10 +364,10 @@ Réfléchissez au schéma de la table `sessions`. Quelles colonnes sont nécessa
 
 ### Étape 4 : Tester les migrations
 
-1. **Supprimez** votre fichier `db.sqlite` existant (on repart de zéro avec les migrations)
+1. **Supprimez** votre fichier `db.sqlite` existant
 2. Lancez `python migrator.py status` pour voir les migrations en attente
 3. Lancez `python migrator.py up` pour appliquer les migrations
-4. Vérifiez avec DB Browser for SQLite que les tables `users`, `sessions` et `schema_migrations` existent
+4. Vérifiez avec `DB Browser for SQLite` que les tables `users`, `sessions` et `migrator_version` existent
 5. Testez `python migrator.py down` puis `status` pour vérifier le rollback
 
 ### Étape 5 : Adapter le code de l'application

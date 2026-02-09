@@ -7,6 +7,14 @@ ici un cli qui tente de reproduire les commandes git clone, et git commit
 import argparse
 
 
+def clone_cmd(url):
+    print(f"cloning {url}")
+
+
+def commit_cmd(message):
+    print(f"creating commit with message : {message}")
+
+
 def cli():
     parser = argparse.ArgumentParser(description="a git cli example")
     base_parser = argparse.ArgumentParser(add_help=False)
@@ -30,7 +38,7 @@ def cli():
         help="commit files",
         parents=[base_parser],
     )
-    commit_parser.add_argument("-m", help="commit message")
+    commit_parser.add_argument("-m", "--message", dest="message", help="commit message")
     args = parser.parse_args()
     return args
 
@@ -39,6 +47,12 @@ def main():
     args = cli()
     print(args)
     print(f"la commande lancée est {args.command}")
+    if args.command == "clone":
+        clone_cmd(args.url)
+    elif args.command == "commit":
+        commit_cmd(args.message)
+    else:
+        raise argparse.ArgumentError("command unknown")
 
 
 if __name__ == "__main__":
