@@ -5,6 +5,7 @@ from functools import wraps
 from flask import redirect, request, url_for
 
 from src.db import get_connection
+from src.services.users import get_user_by_id
 
 SESSION_LIFETIME = timedelta(minutes=30)
 
@@ -63,7 +64,14 @@ def delete_session(session_id: str) -> bool:
         return cursor.rowcount > 0
 
 
-def get_current_user(request) -> int | None:
+def get_current_user(request) -> dict | None:
+    user_id = get_current_user_id(request)
+    if not user_id:
+        return None
+    return get_user_by_id(user_id)
+
+
+def get_current_user_id(request) -> int | None:
     session_id = request.cookies.get("session_id")
     if not session_id:
         return None
@@ -80,7 +88,7 @@ def login_required(f):
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        current_user = get_current_user(request)
+        current_user = get_current_user_id(request)
         if not current_user:
             return redirect(url_for("auth.login_page"))
         return f(*args, **kwargs)

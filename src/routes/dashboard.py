@@ -3,7 +3,7 @@ import ipaddress
 from flask import Blueprint, render_template, request
 
 from src.core.scan import scan
-from src.services.sessions import login_required
+from src.services.sessions import get_current_user, login_required
 
 dashboard_blueprint = Blueprint("dashboard", __name__)
 
@@ -30,7 +30,8 @@ def valid_port(value):
 @dashboard_blueprint.get("/dashboard")
 @login_required
 def dashboard_page():
-    return render_template("dashboard.html")
+    current_user = get_current_user(request)
+    return render_template("dashboard.html", username=current_user["username"])
 
 
 @dashboard_blueprint.post("/scan")

@@ -1,7 +1,7 @@
 from flask import Blueprint, redirect, render_template, request, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from src.services.sessions import create_session, delete_session, get_current_user
+from src.services.sessions import create_session, delete_session, get_current_user_id
 from src.services.users import add_user, get_user_by_username, user_exists
 
 auth_blueprint = Blueprint("auth", __name__)
@@ -9,7 +9,7 @@ auth_blueprint = Blueprint("auth", __name__)
 
 @auth_blueprint.get("/register")
 def register_page():
-    current_user = get_current_user(request)
+    current_user = get_current_user_id(request)
     if current_user:
         return redirect(url_for("dashboard.dashboard_page"))
     return render_template("register.html")
@@ -31,7 +31,7 @@ def post_register():
 
 @auth_blueprint.get("/login")
 def login_page():
-    current_user = get_current_user(request)
+    current_user = get_current_user_id(request)
     if current_user:
         return redirect(url_for("dashboard.dashboard_page"))
     return render_template("login.html")
