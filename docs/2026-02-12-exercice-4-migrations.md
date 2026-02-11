@@ -390,11 +390,254 @@ Les fonctions à adapter :
 
 ### Bonus
 
-- Ajoutez une migration `003_add_created_at_to_users.sql` qui ajoute un champ `created_at` à la table `users`
+- Ajoutez une migration `003_add_created_at_to_users.sql` qui ajoute un champ `created_at` à la table `users`, qui sera généré automatiquement par la DB
 - Supprimez le fichier `create_db.py` devenu inutile
 
 ---
 
-## Correction
+### Correction
 
-cf. le code :)
+cf. le code `examples/migrator.py` et `examples/migrations`
+
+## Partie 4 : Mise en place d'Alembic
+
+### Qu'est-ce qu'Alembic ?
+
+[Alembic](https://alembic.sqlalchemy.org/) est l'outil de migration de référence dans l'écosystème Python. Il est développé par le même auteur que **SQLAlchemy** (Mike Bayer) et s'intègre naturellement avec celui-ci.
+
+### Grands principes
+
+#### Le graphe de révisions
+
+Contrairement à notre `migrator` qui utilise une numérotation linéaire (`001` -> `002` -> `003`), Alembic utilise un **graphe de révisions**. Chaque migration possède :
+
+- Un **revision ID** : un identifiant court et unique (ex: `a1b2c3d4e5f6`)
+- Un **down_revision** : l'identifiant de la migration parente (celle qui doit être appliquée avant)
+
+```plaintext
+(base) ─── a1b2c3 ─── f7e8d9 ─── 4k5l6m
+            │             │            │
+        create_users  create_sessions  add_created_at
+```
+
+Ce système permet notamment de gérer les **branches** : deux développeurs peuvent créer des migrations en parallèle, puis les fusionner avec une migration de **merge**.
+
+#### L'environnement Alembic
+
+Quand on initialise Alembic dans un projet, alembic génère une structure bien définie :
+
+```plaintext
+projet/
+├── alembic.ini              # Configuration principale (connexion DB, options)
+├── alembic/                 # Dossier Alembic
+│   ├── env.py               # Script d'environnement (comment se connecter à la DB)
+│   ├── script.py.mako       # Template pour generer les migrations
+│   └── versions/            # Dossier contenant les migrations
+│       ├── a1b2c3_create_users_table.py
+│       └── f7e8d9_create_sessions_table.py
+```
+
+- **`alembic.ini`** : fichier de configuration (URL de la base, options de logging, etc.)
+- **`env.py`** : le "cerveau" d'Alembic. C'est un script Python qui configure la connexion à la base et lance les migrations. C'est ici qu'on branche SQLAlchemy.
+- **`script.py.mako`** : un template [Mako](https://www.makotemplates.org/) utilisé pour générer de nouvelles migrations
+- **`versions/`** : l'équivalent de notre dossier `migrations/`, mais les fichiers sont en Python (et peuvent contenir du SQL brut)
+
+#### Les migrations sont en Python
+
+Avec notre `migrator`, les migrations sont en SQL brut. Avec Alembic, les migrations sont des **scripts Python**.
+
+Il est possible de continuer à écrire du pur SQL si l'on souhaite, ou bien on peut utiliser l'API `op` d'Alembic.
+
+`op` est une classe qui permet de faire du SQL en python.
+
+En prenant pour exemple notre première migration, celle qui doit créer la table `users`, voici à quoi elle ressemble au format alembic en pur python.
+
+```python
+"""create users table
+
+Revision ID: a1b2c3d4e5f6
+Revises:
+Create Date: 2026-02-12 14:30:00.000000
+"""
+from alembic import op
+import sqlalchemy as sa
+
+# identifiants de révision
+revision = 'a1b2c3d4e5f6'
+down_revision = None  # None = première migration
+
+def upgrade():
+    op.create_table(
+        'users',
+        sa.Column('id', sa.Integer, primary_key=True, autoincrement=True),
+        sa.Column('username', sa.Text, unique=True, nullable=False),
+        sa.Column('password', sa.Text, nullable=False),
+    )
+
+def downgrade():
+    op.drop_table('users')
+```
+
+L'avantage de cette approche Python par rapport au SQL brut :
+
+- Le code est **indépendant du moteur** de base de données. `op.create_table()` génère le bon SQL que ce soit pour SQLite, PostgreSQL ou MySQL
+- On peut exécuter de la **logique Python** dans les migrations (conditions, boucles, transformations de données...)
+- Les migrations bénéficient de la **validation syntaxique** de Python
+
+On peut cependant toujours faire une migration en pur sql via `op.execute()`. Cela ressemblerait à :
+
+```python
+"""create users table
+
+Revision ID: a1b2c3d4e5f6
+Revises:
+Create Date: 2026-02-12 14:30:00.000000
+"""
+from alembic import op
+
+# identifiants de révision
+revision = 'a1b2c3d4e5f6'
+down_revision = None  # None = première migration
+
+def upgrade():
+    op.execute("""
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL
+        )
+    """)
+
+def downgrade():
+    op.execute("DROP TABLE users")
+```
+
+L'avantage : on garde le contrôle total du SQL exécuté, tout en bénéficiant du système de révisions et de suivi d'Alembic.
+
+L'inconvénient : le SQL est spécifique à un moteur de base de données. Si on change de moteur (par exemple de SQLite à PostgreSQL), il faudra potentiellement adapter le SQL.
+
+#### L'auto-génération
+
+Une des principales raisons de choisir Alembic.
+
+Si vous utilisez SQLAlchemy avec des **modèles** (classes Python qui décrivent vos tables SQL), Alembic peut **comparer** l'état de vos modèles avec l'état de la base de données et **générer automatiquement** le code de migration.
+
+Nous reviendrons plus tard sur cet aspect, lors d'un prochain TP sur SQLAlchemy.
+
+#### La table de suivi
+
+Comme notre `migrator`, Alembic maintient une table de suivi dans la base de données. Elle s'appelle `alembic_version` et contient une seule colonne :
+
+```sql
+CREATE TABLE alembic_version (
+    version_num VARCHAR(32) NOT NULL
+);
+```
+
+Elle contient la révision actuellement appliquée. C'est l'équivalent de notre `migrator_version`.
+
+### Installation
+
+```bash
+source venv/bin/activate
+pip install alembic
+pip freeze > requirements.txt
+```
+
+> Note : On remarque que SQLAlchemy est automatiquement installé car Alembic dépend de SQLAlchemy.
+
+### Initialisation
+
+Pour initialiser Alembic dans le projet :
+
+```bash
+alembic init alembic
+```
+
+Cela crée la structure `alembic/` et le fichier `alembic.ini` à la racine du projet.
+
+### Commandes principales
+
+Voici les commandes les plus utiles :
+
+- `alembic current` — voir la version actuelle de la base
+- `alembic history` — voir l'historique des migrations
+- `alembic revision -m "nom"` — créer une nouvelle migration
+- `alembic revision --autogenerate -m "nom"` — auto-générer une migration à partir des modèles SQLAlchemy
+- `alembic upgrade head` — appliquer toutes les migrations
+- `alembic upgrade +1` — appliquer la prochaine migration
+- `alembic downgrade -1` — annuler la dernière migration
+- `alembic downgrade base` — tout annuler
+
+### Étape 1 : Initialiser Alembic
+
+```bash
+alembic init alembic
+```
+
+Configurez `alembic.ini` avec l'URL SQLite : `sqlite:///db.sqlite`.
+
+### Étape 2 : Créer la migration pour la table users
+
+```bash
+alembic revision -m "create users table"
+```
+
+Éditez le fichier généré dans `alembic/versions/` pour ajouter la création de la table `users`. Ici nous allons faire en pur sql.
+
+```python
+def upgrade():
+    op.execute("""
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL
+        )
+    """)
+
+def downgrade():
+    op.execute("DROP TABLE users")
+```
+
+#### Étape 3 : Créer la migration pour la table sessions
+
+```bash
+alembic revision -m "create sessions table"
+```
+
+```python
+def upgrade():
+    op.execute("""
+        CREATE TABLE sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT UNIQUE NOT NULL,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL
+        );
+    """)
+
+def downgrade():
+    op.execute("DROP TABLE sessions")
+```
+
+#### Étape 4 : Appliquer et tester
+
+```bash
+# Supprimer l'ancienne base (si elle existe)
+rm -f db.sqlite
+
+# Appliquer toutes les migrations
+alembic upgrade head
+
+# Vérifier l'état
+alembic current
+alembic history --verbose
+
+# Tester le rollback
+alembic downgrade -1
+alembic current
+
+# Ré-appliquer
+alembic upgrade head
+```
