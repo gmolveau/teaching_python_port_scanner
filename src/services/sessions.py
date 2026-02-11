@@ -4,71 +4,66 @@ from functools import wraps
 
 from flask import redirect, request, url_for
 
-# Stockage des sessions en mémoire (dictionnaire)
-# En production, on utiliserait Redis ou une base de données
-SESSIONS = {}
+from src.db import get_connection
 
-# Durée de vie d'une session (30 minutes)
 SESSION_LIFETIME = timedelta(minutes=30)
 
 
 def generate_session_id():
-    """
-    Génère un identifiant de session sécurisé.
-    secrets.token_hex génère une chaîne aléatoire cryptographiquement sûre.
-    """
-    return secrets.token_hex(32)  # 64 caractères hexadécimaux
+    return secrets.token_hex(32)
 
 
-def create_session(user_id: str) -> str:
-    """
-    Crée une nouvelle session pour un utilisateur.
-    Retourne le session_id à stocker dans le cookie.
-    """
+def create_session(user_id: int) -> str:
     session_id = generate_session_id()
-    SESSIONS[session_id] = {
-        "user_id": user_id,
-        "created_at": datetime.now(),
-        "expires_at": datetime.now() + SESSION_LIFETIME,
-    }
+    created_at = datetime.now().isoformat()
+    expires_at = (datetime.now() + SESSION_LIFETIME).isoformat()
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO sessions (session_id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
+            (session_id, user_id, created_at, expires_at),
+        )
+        conn.commit()
+
     return session_id
 
 
 def get_session(session_id: str) -> dict | None:
-    """
-    Récupère les données d'une session.
-    Retourne None si la session n'existe pas ou a expiré.
-    """
-    if session_id not in SESSIONS:
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT user_id, created_at, expires_at FROM sessions WHERE session_id = ?",
+            (session_id,),
+        )
+        result = cursor.fetchone()
+
+    if not result:
         return None
 
-    session = SESSIONS[session_id]
+    user_id, created_at, expires_at = result
 
-    # Vérifier si la session a expiré
-    if datetime.now() > session["expires_at"]:
-        # Supprimer la session expirée
-        del SESSIONS[session_id]
+    # Delete expired session
+    if datetime.now() > datetime.fromisoformat(expires_at):
+        delete_session(session_id)
         return None
 
-    return session
+    return {
+        "user_id": user_id,
+        "created_at": created_at,
+        "expires_at": expires_at,
+    }
 
 
 def delete_session(session_id: str) -> bool:
-    """
-    Supprime une session (déconnexion).
-    Retourne True si la session existait.
-    """
-    if session_id in SESSIONS:
-        del SESSIONS[session_id]
-        return True
-    return False
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
+        conn.commit()
+        return cursor.rowcount > 0
 
 
-def get_current_user(request) -> str | None:
-    """
-    Récupère l'utilisateur actuellement connecté à partir de la requête.
-    Retourne None si l'utilisateur n'est pas connecté.
-    """
+def get_current_user(request) -> int | None:
     session_id = request.cookies.get("session_id")
     if not session_id:
         return None
@@ -81,10 +76,7 @@ def get_current_user(request) -> str | None:
 
 
 def login_required(f):
-    """
-    Décorateur qui protège une route.
-    Redirige vers /login si l'utilisateur n'est pas connecté.
-    """
+    """Redirect to /login if the user is not authenticated."""
 
     @wraps(f)
     def decorated_function(*args, **kwargs):

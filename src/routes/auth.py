@@ -2,7 +2,7 @@ from flask import Blueprint, redirect, render_template, request, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from src.services.sessions import create_session, delete_session, get_current_user
-from src.services.users import add_user, get_user_password, user_exists
+from src.services.users import add_user, get_user_by_username, user_exists
 
 auth_blueprint = Blueprint("auth", __name__)
 
@@ -41,25 +41,23 @@ def login_page():
 def post_login():
     form = request.form.to_dict()
     username = form.get("username", "")
-    if not user_exists(username):
+    user = get_user_by_username(username)
+    if not user:
         return redirect(url_for("auth.login_page"))
 
-    secure_password = get_user_password(username)
     password = form.get("password", "")
-    if not check_password_hash(secure_password, password):
+    if not check_password_hash(user["password"], password):
         return redirect(url_for("forms.home"))
 
-    # Créer une session pour l'utilisateur
-    session_id = create_session(username)
+    session_id = create_session(user["id"])
 
-    # Créer la réponse avec le cookie de session
     response = redirect(url_for("dashboard.dashboard_page"))
     response.set_cookie(
         "session_id",
         session_id,
-        httponly=True,  # Non accessible via JavaScript
-        samesite="Lax",  # Protection CSRF basique
-        max_age=86400,  # 1 jour
+        httponly=True,
+        samesite="Lax",
+        max_age=86400,  # 1 day
         secure=True,
     )
 
@@ -68,14 +66,11 @@ def post_login():
 
 @auth_blueprint.get("/logout")
 def logout():
-    # Récupérer le session_id depuis le cookie
     session_id = request.cookies.get("session_id")
 
     if session_id:
-        # Supprimer la session côté serveur
         delete_session(session_id)
 
-    # Créer une réponse qui supprime le cookie
     response = redirect(url_for("auth.login_page"))
     response.delete_cookie("session_id")
 

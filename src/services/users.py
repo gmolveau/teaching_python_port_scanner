@@ -18,9 +18,21 @@ def add_user(username, password):
         conn.commit()
 
 
-def get_user_password(username):
+def get_user_by_username(username):
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT password FROM users WHERE username = ?", (username,))
+        cursor.execute("SELECT id, password FROM users WHERE username = ?", (username,))
         result = cursor.fetchone()
-        return result[0] if result else None
+        if not result:
+            return None
+        return {"id": result[0], "password": result[1]}
+
+
+def get_user_by_id(user_id):
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, username FROM users WHERE id = ?", (user_id,))
+        result = cursor.fetchone()
+        if not result:
+            return None
+        return {"id": result[0], "username": result[1]}
