@@ -12,6 +12,7 @@ Teaching python with a `port scanner` exercice
 2. `inmemory`
 3. `sqlite`
 4. `sessions`
+5. `migrations`
 
 - Read the `docs/` folder and follow the exercice
 - The full project answer is in the same branch
