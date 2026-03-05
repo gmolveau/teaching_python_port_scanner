@@ -23,7 +23,7 @@ upgrade: ## Upgrade all dependencies
 
 PHONY: run-dev
 run-dev: ## Run the app in dev mode
-	uv run uvicorn src.web:app --reload --host 0.0.0.0 --port=8000
+	uv run flask --app src run --debug
 
 ### Database
 

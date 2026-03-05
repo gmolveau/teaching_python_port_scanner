@@ -19,7 +19,7 @@ upgrade:
 
 # Run the app in dev mode
 run-dev:
-    uv run uvicorn src.web:app --reload --host 0.0.0.0 --port=8000
+    uv run flask --app src run --debug
 
 ### Database
 
