@@ -1,0 +1,22 @@
+{
+  "recommendations": [
+    "astral-sh.ty",
+    "charliermarsh.ruff",
+    "davidanson.vscode-markdownlint",
+    "dabcumer.vscode-eslint",
+    "editorconfig.editorconfig",
+    "esbenp.prettier-vscode",
+    "foxundermoon.shell-format",
+    "gruntfuggly.todo-tree",
+    "iulian-radu-at.vscode-tasks-sidebar",
+    "ms-azuretools.vscode-containers",
+    "ms-gmolveau.open-repository-in-browser",
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-toolsai.jupyter",
+    "ms-vscode.makefile-tools",
+    "nefrob.vscode-just-syntax",
+    "timonwong.shellcheck",
+    "yzhang.markdown-all-in-one"
+  ]
+}

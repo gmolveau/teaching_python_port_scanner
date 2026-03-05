@@ -1,0 +1,47 @@
+{
+  "[dockerfile]": {
+    "editor.defaultFormatter": "ms-azuretools.vscode-containers"
+  },
+  "[properties]": {
+    "editor.defaultFormatter": "foxundermoon.shell-format"
+  },
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4
+  },
+  "[shellscript]": {
+    "editor.defaultFormatter": "foxundermoon.shell-format"
+  },
+  "[vue][javascript][typescript][jsonc][css][html][json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit",
+    "source.fixAll": "explicit",
+    "source.removeUnused": "explicit",
+    "source.sortImports": "explicit",
+    "source.removeUnusedImports": "explicit"
+  },
+  "editor.formatOnSave": true,
+  "editor.formatOnType": true,
+  "eslint.validate": ["vue", "javascript", "typescript"],
+  "eslint.enable": true,
+  "eslint.useFlatConfig": true,
+  "eslint.workingDirectories": ["frontend"],
+  "files.associations": {
+    "*.env": "shellscript",
+    "*.css": "tailwindcss"
+  },
+  "makefile.configureOnOpen": false,
+  "prettier.enable": true,
+  "python.defaultInterpreterPath": ".venv/bin/python",
+  "python.languageServer": "Default",
+  "python.terminal.activateEnvironment": true,
+  "python.testing.pytestArgs": ["tests"],
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestPath": "FLASK_ENV=test uv run pytest",
+  "python.testing.unittestEnabled": false,
+  "ruff.lint.enable": true,
+  "ruff.configuration": "."
+}
