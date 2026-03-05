@@ -13,6 +13,7 @@ Teaching python with a `port scanner` exercice
 3. `sqlite`
 4. `sessions`
 5. `migrations`
+6. `tooling`
 
 - Read the `docs/` folder and follow the exercice
 - The full project answer is in the same branch
