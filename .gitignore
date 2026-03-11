@@ -2,3 +2,5 @@ venv/
 .venv/
 .env
 *.sqlite
+!examples/sqlalchemy_simple_alembic/migrations/versions/
+examples/sqlalchemy_simple_alembic/migrations/versions/*
