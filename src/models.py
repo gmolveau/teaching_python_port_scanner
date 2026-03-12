@@ -10,21 +10,21 @@ class Base(DeclarativeBase):
 
 class User(Base):
     __tablename__ = "users"
-
+    # fields
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
-
+    # relationships
     sessions: Mapped[list["UserSession"]] = relationship(back_populates="user")
 
 
 class UserSession(Base):
     __tablename__ = "sessions"
-
+    # fields
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     session_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-
+    # relationships
     user: Mapped["User"] = relationship(back_populates="sessions")
