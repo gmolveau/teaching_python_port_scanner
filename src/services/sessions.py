@@ -3,65 +3,65 @@ from datetime import datetime, timedelta
 from functools import wraps
 
 from flask import redirect, request, url_for
+from sqlalchemy import select
 
-from src.db import get_connection
+from src.db import get_session
+from src.models import UserSession
 from src.services.users import get_user_by_id
 
 SESSION_LIFETIME = timedelta(minutes=30)
 
 
-def generate_session_id():
+def generate_session_id() -> str:
     return secrets.token_hex(32)
 
 
 def create_session(user_id: int) -> str:
     session_id = generate_session_id()
-    created_at = datetime.now().isoformat()
-    expires_at = (datetime.now() + SESSION_LIFETIME).isoformat()
+    now = datetime.now()
 
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO sessions (session_id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
-            (session_id, user_id, created_at, expires_at),
-        )
-        conn.commit()
+    with get_session() as db:
+        db.add(UserSession(
+            session_id=session_id,
+            user_id=user_id,
+            created_at=now,
+            expires_at=now + SESSION_LIFETIME,
+        ))
+        db.commit()
 
     return session_id
 
 
-def get_session(session_id: str) -> dict | None:
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT user_id, created_at, expires_at FROM sessions WHERE session_id = ?",
-            (session_id,),
+def get_session_data(session_id: str) -> dict | None:
+    with get_session() as db:
+        user_session = db.scalar(
+            select(UserSession).where(UserSession.session_id == session_id)
         )
-        result = cursor.fetchone()
 
-    if not result:
+    if not user_session:
         return None
 
-    user_id, created_at, expires_at = result
-
-    # Delete expired session
-    if datetime.now() > datetime.fromisoformat(expires_at):
+    if datetime.now() > user_session.expires_at:
         delete_session(session_id)
         return None
 
     return {
-        "user_id": user_id,
-        "created_at": created_at,
-        "expires_at": expires_at,
+        "user_id": user_session.user_id,
+        "created_at": user_session.created_at,
+        "expires_at": user_session.expires_at,
     }
 
 
 def delete_session(session_id: str) -> bool:
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
-        conn.commit()
-        return cursor.rowcount > 0
+    with get_session() as db:
+        user_session = db.scalar(
+            select(UserSession).where(UserSession.session_id == session_id)
+        )
+        if not user_session:
+            return False
+        db.delete(user_session)
+        db.commit()
+        return True
 
 
 def get_current_user(request) -> dict | None:
@@ -76,7 +76,7 @@ def get_current_user_id(request) -> int | None:
     if not session_id:
         return None
 
-    session = get_session(session_id)
+    session = get_session_data(session_id)
     if not session:
         return None
 

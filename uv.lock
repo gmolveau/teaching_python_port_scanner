@@ -277,6 +277,7 @@ dependencies = [
     { name = "alembic" },
     { name = "flask" },
     { name = "python-dotenv" },
+    { name = "sqlalchemy" },
 ]
 
 [package.dev-dependencies]
@@ -289,6 +290,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.18.4" },
     { name = "flask", specifier = ">=3.1.3" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
+    { name = "sqlalchemy", specifier = ">=2.0.48" },
 ]
 
 [package.metadata.requires-dev]

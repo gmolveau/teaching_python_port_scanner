@@ -278,9 +278,9 @@ Je vous invite fortement à lire la documentation complète ici : <https://docs.
 
 Pour fonctionner, SQLAlchemy va avoir besoin des informations de connexion à la base de données.
 
-Ces informations sont généralement stockées dans les variables d'environnement.
+Ces informations sont généralement stockées dans les variables d'environnement, pour éviter la recopie.
 
-Créons le fichier `.env.example` qui contiendra la liste des variables d'environnement.
+Créons le fichier `.env.example` qui contiendra la liste des variables d'environnement à renseigner.
 
 Ce fichier sera commité avec le projet.
 
@@ -300,7 +300,7 @@ TODO intégration avec flask via flask-sqlalchemy - expliquer a quoi sert cette 
 
 TODO creer les models dans @src/models.py
 
-## Alembic
+### Alembic
 
 1. Déplacons le dossier alembic dans `src`
 

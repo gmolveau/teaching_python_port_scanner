@@ -4,11 +4,10 @@
 #
 # Run with: uv run examples/sqlalchemy_blog/main.py
 
+from models import Base, BlogPost, Like, User
 from sqlalchemy import create_engine, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-
-from models import Base, BlogPost, Like, User
 
 engine = create_engine("sqlite:///:memory:")
 Base.metadata.create_all(engine)
@@ -44,7 +43,6 @@ with Session(engine) as session:
         print("Bob already liked this post — duplicate prevented.")
 
     # --- Query: posts with their like count ---
-    # select() is the SQLAlchemy v2 way to build queries
     stmt = select(BlogPost)
     for p in session.scalars(stmt):
         print(f"'{p.title}' by {p.author.username} — {len(p.likes)} like(s)")
