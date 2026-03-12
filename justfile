@@ -25,11 +25,11 @@ run-dev:
 
 # Auto-generate a new migration
 new-migrate name:
-    uv run alembic -c src/db/migrations/alembic.ini revision --autogenerate -m {{ name }}
+    uv run alembic -c alembic.ini revision --autogenerate -m {{ name }}
 
 # Run the migrations (will update the database)
 migrate:
-    uv run alembic -c src/db/migrations/alembic.ini upgrade head
+    uv run alembic -c alembic.ini upgrade head
 
 ### Format and checks
 
@@ -53,7 +53,7 @@ bandit:
 
 # Run the alembic check
 alembic-check:
-    uv run alembic -c src/db/migrations/alembic.ini check
+    uv run alembic -c alembic.ini check
 
 # Run all checks
 checks: ty ruff-check bandit

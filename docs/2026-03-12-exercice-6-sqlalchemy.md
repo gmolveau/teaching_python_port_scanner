@@ -177,7 +177,7 @@ Essayez de lancer `uv run alembic revision --autogenerate -m "add users"`
 
 Alembic va créer automatiquement une nouvelle mirgations dans `migrations/versions`.
 
-On peut maintenant lancer la créer de notre DB avec alembic !
+On peut maintenant lancer la création de notre DB avec alembic !
 
 `uv run alembic upgrade head`
 
@@ -274,7 +274,7 @@ Je vous invite fortement à lire la documentation complète ici : <https://docs.
 
 ## Mise en place
 
-### Infos de connexion
+### Infos de connexion - env vars
 
 Pour fonctionner, SQLAlchemy va avoir besoin des informations de connexion à la base de données.
 
@@ -292,6 +292,51 @@ Et créons le fichier `.env` avec la même donnée.
 
 On veillera à ignorer le fichier `.env` dans notre `.gitignore`.
 
+### Alembic
+
+Déplacons le dossier alembic dans `src`
+
+Il faudra éditer `alembic.ini` > `script_location = %(here)s/src/alembic`
+
+Pour que `alembic` puisse récupérer les variables d'environnement, il faudra modifier le script `src/alembic/env.py`.
+
+```python
+import os
+from logging.config import fileConfig
+
+from dotenv import load_dotenv
+from sqlalchemy import engine_from_config, pool
+
+from alembic import context
+
+load_dotenv()
+
+# this is the Alembic Config object, which provides
+# access to the values within the .ini file in use.
+config = context.config
+
+config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"])
+
+# Interpret the config file for Python logging.
+# This line sets up loggers basically.
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
+
+# add your model's MetaData object here
+# for 'autogenerate' support
+from src.models import Base  # noqa: E402
+
+target_metadata = Base.metadata
+```
+
+Ici on rajoute la librairie `dotenv` afin d'auto importer les variables d'environnement.
+
+Puis on utilise la variable `DATABASE_URL` pour configurer alembic afin qu'il trouve la base de données.
+
+Et enfin on importe notre `Base` model depuis notre fichier `models.py`
+
+Ce fichier `models.py` n'existe pas encore nous allons le créer.
+
 ### Models
 
 TODO remplacer @src/db.py par sqlalchemy
@@ -299,9 +344,3 @@ TODO remplacer @src/db.py par sqlalchemy
 TODO intégration avec flask via flask-sqlalchemy - expliquer a quoi sert cette librairie et si elle est necessaire ou pas
 
 TODO creer les models dans @src/models.py
-
-### Alembic
-
-1. Déplacons le dossier alembic dans `src`
-
-Il faudra éditer `alembic.ini` > `script_location = %(here)s/src/alembic`
