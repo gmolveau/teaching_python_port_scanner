@@ -1,6 +1,7 @@
 from flask import Blueprint, redirect, render_template, request, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from src.exceptions import NotAuthenticated, UserNotFound
 from src.services.sessions import create_session, delete_session, get_current_user_id
 from src.services.users import add_user, get_user_by_username, user_exists
 
@@ -9,9 +10,12 @@ auth_blueprint = Blueprint("auth", __name__)
 
 @auth_blueprint.get("/register")
 def register_page():
-    current_user = get_current_user_id(request)
-    if current_user:
-        return redirect(url_for("dashboard.dashboard_page"))
+    if session_id := request.cookies.get("session_id"):
+        try:
+            get_current_user_id(session_id)
+            return redirect(url_for("dashboard.dashboard_page"))
+        except NotAuthenticated:
+            pass
     return render_template("register.html")
 
 
@@ -31,9 +35,12 @@ def post_register():
 
 @auth_blueprint.get("/login")
 def login_page():
-    current_user = get_current_user_id(request)
-    if current_user:
-        return redirect(url_for("dashboard.dashboard_page"))
+    if session_id := request.cookies.get("session_id"):
+        try:
+            get_current_user_id(session_id)
+            return redirect(url_for("dashboard.dashboard_page"))
+        except NotAuthenticated:
+            pass
     return render_template("login.html")
 
 
@@ -41,15 +48,16 @@ def login_page():
 def post_login():
     form = request.form.to_dict()
     username = form.get("username", "")
-    user = get_user_by_username(username)
-    if not user:
+    try:
+        user = get_user_by_username(username)
+    except UserNotFound:
         return redirect(url_for("auth.login_page"))
 
     password = form.get("password", "")
-    if not check_password_hash(user["password"], password):
+    if not check_password_hash(user.password_hash, password):
         return redirect(url_for("forms.home"))
 
-    session_id = create_session(user["id"])
+    session_id = create_session(user.id)
 
     response = redirect(url_for("dashboard.dashboard_page"))
     response.set_cookie(

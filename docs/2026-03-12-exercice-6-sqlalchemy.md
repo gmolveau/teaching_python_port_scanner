@@ -331,16 +331,180 @@ target_metadata = Base.metadata
 
 Ici on rajoute la librairie `dotenv` afin d'auto importer les variables d'environnement.
 
+Nous n'avons pas encore installé cette librairie, rajoutons là à nos dépendances.
+
+```bash
+uv add python-dotenv
+```
+
 Puis on utilise la variable `DATABASE_URL` pour configurer alembic afin qu'il trouve la base de données.
 
 Et enfin on importe notre `Base` model depuis notre fichier `models.py`
 
 Ce fichier `models.py` n'existe pas encore nous allons le créer.
 
+### Connexion à la BD
+
+Il faut éditer notre fichier `src/db.py` pour remplacer notre connexion à la base SQLite pour utiliser SQLAlchemy.
+
+```python
+import os
+
+from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+
+load_dotenv()
+
+DATABASE_URL = os.environ["DATABASE_URL"]
+
+engine = create_engine(DATABASE_URL)
+
+
+def get_session() -> Session:
+    return Session(engine)
+
+```
+
+Maintenant que nous avons la nouvelle connexion à notre base de données via SQLAlchemy, il nous faut créer nos models SQLAlchemy ;)
+
 ### Models
 
-TODO remplacer @src/db.py par sqlalchemy
+Pour débuter nous allons faire le choix de mettre tous les models dans un unique fichier.
 
-TODO intégration avec flask via flask-sqlalchemy - expliquer a quoi sert cette librairie et si elle est necessaire ou pas
+Il est possible si notre application évolue, de répartir les models dans plusieurs fichiers, en faisant attention aux imports circulaires.
 
-TODO creer les models dans @src/models.py
+Créons donc le fichier `src/models.py`.
+
+Nous allons avoir 4 classes au total :
+
+- `Base`
+- `User` : `id` (int, clé primaire), `username` (text, non-null, unique), `password_hash` (text, non-null)
+- `Session` : `id` (int, clé primaire), `expires_at` (date, non-null), `external_id` (uuidv7, non-null, calculé automatiquement lors de la création)
+- `Scan` : `id` (int, clé primaire), `ip_target` (str, non-null), `port_target` (int, non-null), `result` (text)
+
+Le champ `external_id` est requis ici car l'identifiant etant un entier autoincrémenté, il nous faut un autre identifiant plus sécurisé. On pourrait très bien modifier le type de l'identifiant de cette table pour utiliser un UUID et ne pu avoir besoin de ce champ `external_id` supplémentaire.
+
+Il y aura deux relations one-to-many :
+
+- `[User] N - 1 [Session]`
+- `[User] N - 1 [Scan]`
+
+#### Exercice models
+
+Avant de lire la correction (cf `src/models.py`), essayez de coder les models !
+
+#### Services
+
+Maintenant que nos models sont prêts, nous allons pouvoir les utiliser dans nos `services`.
+
+Par exemple nous remplacerons :
+
+```python
+def user_exists(username):
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM users WHERE username = ?", (username,))
+        result = cursor.fetchone()
+        return result is not None
+```
+
+par son équivalent qui utilise la session de SQLAlchemy et le model `User` :
+
+```python
+def user_exists(username: str) -> bool:
+    with get_session() as db:
+        stmt = select(User).where(User.username == username)
+        user = db.scalar(stmt)
+        return user is not None
+```
+
+Expliquons ce changement ligne par ligne :
+
+```python
+# 0. création de la session (connexion à la DB)
+with get_session() as db:
+    # 1. d'abord la requete (aussi appelé statement, stmt en version courte)
+    # plutot explicite, on imagine facilement sa traduction en SQL
+    # SELECT * FROM users as u WHERE u.username = "<username>";
+    stmt = select(User).where(User.username == username)
+    # 2. on execute cette requete avec db.scalar(...) qui signifie
+    # je ne veux qu'un seul résultat
+    # si on voulait plusieurs résultats, il faut utiliser db.scalars(...)
+    # 3. et le résultat de cette requête est stocké dans une variable
+    user = db.scalar(stmt)
+    # 4. le but de notre fonction est d'indiquer si un utilisateur existe pour un username donné, on fait le choix que notre fonction renvoie un bool (True/False)
+    # db.scalar(...) renvoie None si la requete n'a retourné aucun resultat
+    # on se sert donc de ce None pour verifier si un utilisateur existe
+    # (user is not None) renvoie bien un bool
+    return user is not None
+```
+
+**Exercice** terminer de modifier tous les services.
+
+#### flask-sqlalchemy
+
+[`flask-sqlalchemy`](https://flask-sqlalchemy.palletsprojects.com/) est une extension Flask qui intègre SQLAlchemy dans le cycle de vie de Flask.
+
+Dans notre projet actuel, chaque fonction de `service` ouvre et ferme sa propre session SQLAlchemy :
+
+```python
+# src/services/users.py
+def user_exists(username: str) -> bool:
+    with get_session() as db:
+        result = db.scalar(select(User).where(User.username == username))
+        return result is not None
+```
+
+Cela signifie que pour traiter une seule requête HTTP, plusieurs sessions sont ouvertes successivement — une par appel de service. Ce n'est pas idéal : une session représente une transaction, et fragmenter les opérations d'une même requête en plusieurs sessions peut causer des incohérences (une donnée insérée dans une session n'est pas encore visible dans une autre avant le `commit`).
+
+L'idéal serait d'avoir **une seule session par requête HTTP**, ouverte en début de requête et fermée (avec commit ou rollback) à la fin.
+
+C'est exactement ce que fait `flask-sqlalchemy` : elle lie la session SQLAlchemy au **contexte de requête Flask** (`g`), de sorte qu'une même session est réutilisée tout au long du traitement de la requête, puis automatiquement nettoyée.
+
+Avec `flask-sqlalchemy`, on initialise une instance `db` globale :
+
+```python
+# src/db.py avec flask-sqlalchemy
+from flask_sqlalchemy import SQLAlchemy
+
+db = SQLAlchemy()
+```
+
+On la rattache à l'application Flask au démarrage :
+
+```python
+# app.py
+from flask import Flask
+from src.db import db
+
+app = Flask(__name__)
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///db.sqlite"
+db.init_app(app)
+```
+
+Les modèles héritent de `db.Model` au lieu de notre `Base` :
+
+```python
+class User(db.Model):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ...
+```
+
+Et dans les services, on utilise directement `db.session` sans ouvrir/fermer de contexte manuellement :
+
+```python
+def user_exists(username: str) -> bool:
+    return db.session.scalar(select(User).where(User.username == username)) is not None
+```
+
+La session est automatiquement fermée par Flask à la fin de chaque requête.
+
+On a fait le choix de ne pas utiliser `flask-sqlalchemy` pour deux raisons :
+
+1. **Découplage** : nos services (`src/services/`) ne dépendent pas de Flask. Ils pourraient être réutilisés dans un script CLI ou un worker sans modifier leur code. Avec `flask-sqlalchemy`, `db.session` est lié au contexte Flask, donc inutilisable en dehors d'une requête.
+
+2. **Clarté pédagogique** : utiliser `get_session()` explicitement rend visible la gestion du cycle de vie de la session, ce qui est plus formateur.
+
+L'approche `flask-sqlalchemy` est très courante dans les projets Flask de taille modeste — elle simplifie le code au prix d'un couplage plus fort avec Flask.

@@ -2,8 +2,9 @@ import ipaddress
 
 from flask import Blueprint, render_template, request
 
-from src.core.scan import scan
-from src.services.sessions import get_current_user, login_required
+from src.models import Scan, User
+from src.routes.decorators import with_user
+from src.services.scans import run_scan
 
 dashboard_blueprint = Blueprint("dashboard", __name__)
 
@@ -28,19 +29,18 @@ def valid_port(value):
 
 
 @dashboard_blueprint.get("/dashboard")
-@login_required
-def dashboard_page():
-    current_user = get_current_user(request)
-    return render_template("dashboard.html", username=current_user["username"])
+@with_user
+def dashboard_page(user: User):
+    return render_template("dashboard.html", username=user.username)
 
 
 @dashboard_blueprint.post("/scan")
-@login_required
-def post_scan():
+@with_user
+def post_scan(user: User):
     form = request.form.to_dict()
     ip_target = valid_ipv4_address(form.get("ipv4"))
     port_target = valid_port(form.get("port"))
-    result = scan(ip_target, port_target)
+    scan: Scan = run_scan(ip_target, port_target, user.id)
     return render_template(
-        "result.html", ipv4=ip_target, port=port_target, result=result
+        "result.html", ipv4=ip_target, port=port_target, result=scan.result
     )
