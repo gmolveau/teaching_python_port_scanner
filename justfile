@@ -1,5 +1,8 @@
+set shell := ["bash", "-euo", "pipefail", "-c"]
+set dotenv-load := true
+
 default:
-    just --list
+    @just --list
 
 ### Dependencies
 
@@ -19,6 +22,7 @@ upgrade:
 
 # Run the app in dev mode
 run-dev:
+    [ -f .env ] || cp .env.example .env
     uv run flask --app src run --debug
 
 ### Database
