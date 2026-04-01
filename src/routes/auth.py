@@ -1,9 +1,12 @@
+import structlog
 from flask import Blueprint, redirect, render_template, request, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from src.exceptions import NotAuthenticated, UserNotFound
 from src.services.sessions import create_session, delete_session, get_current_user_id
 from src.services.users import add_user, get_user_by_username, user_exists
+
+log = structlog.get_logger(__name__)
 
 auth_blueprint = Blueprint("auth", __name__)
 
@@ -24,7 +27,7 @@ def post_register():
     form = request.form.to_dict()
     username = form.get("username")
     if user_exists(username):
-        print("user already exists")
+        log.warning("register_username_taken", username=username)
         return redirect(url_for("auth.register_page"))
 
     password = form.get("password", "")
