@@ -15,6 +15,7 @@ Teaching python with a `port scanner` exercice
 5. `migrations`
 6. `tooling`
 7. `sqlalchemy`
+8. `logs`
 
 - Read the `docs/` folder and follow the exercice
 - The full project answer is in the same branch
