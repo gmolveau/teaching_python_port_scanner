@@ -1,4 +1,5 @@
 from functools import wraps
+from uuid import UUID
 
 from flask import g, redirect, request, url_for
 
@@ -39,7 +40,7 @@ def with_user(f):
         if not session_id:
             return redirect(url_for("auth.login_page"))
         try:
-            user = get_current_user(session_id)
+            user = get_current_user(UUID(session_id))
             return f(*args, user=user, **kwargs)
         except NotAuthenticated:
             return redirect(url_for("auth.login_page"))

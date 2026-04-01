@@ -1,3 +1,5 @@
+from uuid import UUID
+
 import structlog
 from flask import Blueprint, redirect, render_template, request, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -80,7 +82,7 @@ def logout():
     session_id = request.cookies.get("session_id")
 
     if session_id:
-        delete_session(session_id)
+        delete_session(UUID(session_id))
 
     response = redirect(url_for("auth.login_page"))
     response.delete_cookie("session_id")

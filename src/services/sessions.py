@@ -27,10 +27,10 @@ def create_session(user_id: int) -> str:
         return session.external_id.hex
 
 
-def get_session_data(session_id: str) -> Session:
+def get_session_data(session_id: UUID) -> Session:
     with get_session() as db:
         user_session = db.scalar(
-            select(Session).where(Session.external_id == UUID(session_id))
+            select(Session).where(Session.external_id == session_id)
         )
 
         if not user_session:
@@ -43,16 +43,14 @@ def get_session_data(session_id: str) -> Session:
         return user_session
 
 
-def delete_session(session_id: str) -> bool:
+def delete_session(session_id: UUID) -> bool:
     with get_session() as db:
-        result = db.execute(
-            delete(Session).where(Session.external_id == UUID(session_id))
-        )
+        result = db.execute(delete(Session).where(Session.external_id == session_id))
         db.commit()
         return result.rowcount > 0
 
 
-def get_current_user(session_id: str) -> User:
+def get_current_user(session_id: UUID) -> User:
     user_id = get_current_user_id(session_id)
     try:
         return get_user_by_id(user_id)
@@ -60,7 +58,7 @@ def get_current_user(session_id: str) -> User:
         raise NotAuthenticated() from e
 
 
-def get_current_user_id(session_id: str) -> int:
+def get_current_user_id(session_id: UUID) -> int:
     try:
         session = get_session_data(session_id)
     except (SessionNotFound, SessionExpired) as e:

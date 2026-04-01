@@ -2,6 +2,10 @@ version = 1
 revision = 3
 requires-python = ">=3.13"
 
+[options]
+exclude-newer = "2026-03-25T20:26:23.417326Z"
+exclude-newer-span = "P7D"
+
 [[package]]
 name = "alembic"
 version = "1.18.4"
