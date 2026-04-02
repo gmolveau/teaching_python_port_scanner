@@ -2,17 +2,23 @@ import uuid
 
 import structlog
 from flask import Flask, request
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
 
 from src.logging import configure_logging
 from src.routes.auth import auth_blueprint
 from src.routes.dashboard import dashboard_blueprint
 from src.routes.home import home_blueprint
+from src.telemetry import configure_telemetry, is_enabled
 
 
-def create_app(debug: bool = False):
-    configure_logging(debug=debug)
+def create_app():
+    configure_logging()
+    configure_telemetry()
 
     app = Flask(__name__)
+
+    if is_enabled():
+        FlaskInstrumentor().instrument_app(app)
     app.register_blueprint(home_blueprint)
     app.register_blueprint(dashboard_blueprint)
     app.register_blueprint(auth_blueprint)

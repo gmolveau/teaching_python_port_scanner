@@ -65,6 +65,11 @@ checks: ty ruff-check bandit
 # Format code
 format: ruff
 
+### Telemetry
+
+run-jaeger:
+    docker run --rm -p 16686:16686 -p 4318:4318 -e COLLECTOR_OTLP_ENABLED=true jaegertracing/all-in-one:1.76.0
+
 ### Misc
 
 # Clean folder, delete temp folders
